@@ -1,0 +1,413 @@
+swagger: '2.0'
+info:
+  x-ibm-name: sms
+  title: sms
+  version: 1.0.0
+schemes:
+  - https
+host: $(catalog.host)
+basePath: /api
+consumes:
+  - application/json
+produces:
+  - application/json
+securityDefinitions:
+  clientIdHeader:
+    type: apiKey
+    in: header
+    name: X-IBM-Client-Id
+security:
+  - clientIdHeader: []
+x-ibm-configuration:
+  testable: true
+  enforced: true
+  cors:
+    enabled: true
+  assembly:
+    execute:
+      - gatewayscript:
+          title: gatewayscript
+          version: 1.0.0
+          source: |-
+            console.warn("### sms on 8888 service 1 called - 1");
+            console.warn("### " + apim.getvariable('message.body'));
+      - map:
+          title: 'smsService: input'
+          inputs:
+            to:
+              schema:
+                type: string
+              variable: request.parameters.to
+            from:
+              schema:
+                type: string
+              variable: request.parameters.from
+            msg:
+              schema:
+                type: string
+              variable: request.parameters.msg
+          outputs:
+            body:
+              schema:
+                $ref: >-
+                  #/x-ibm-configuration/targets/SmsService/definitions/smsServiceInput
+              variable: message.body
+              content: application/xml
+            content-type:
+              schema:
+                type: string
+              variable: message.headers.content-type
+            SOAPAction:
+              schema:
+                type: string
+              variable: message.headers.SOAPAction
+          actions:
+            - set: content-type
+              default: text/xml
+            - set: SOAPAction
+              default: smsService
+            - set: body.Envelope.Body.smsService.to
+              from: to
+            - set: body.Envelope.Body.smsService.from
+              from: from
+            - set: body.Envelope.Body.smsService.msg
+              from: msg
+      - invoke:
+          title: 'smsService: invoke'
+          target-url: 'http://datapower:8888/smsResponse.xml'
+          timeout: 60
+          verb: POST
+          cache-response: protocol
+          cache-ttl: 900
+          output: smsServiceOut
+      - gatewayscript:
+          title: gatewayscript
+          version: 1.0.0
+          source: >-
+            console.warn("### sms on 8888 service 1 called - 2");
+
+            console.warn("### " +
+            JSON.stringify(apim.getvariable('input.Envelope.Body.smsServiceResponse.return')));
+      - map:
+          title: 'smsService: output'
+          inputs:
+            input:
+              schema:
+                $ref: >-
+                  #/x-ibm-configuration/targets/SmsService/definitions/smsServiceOutput
+              variable: smsServiceOut.body
+              content: application/xml
+          outputs:
+            response:
+              schema:
+                type: string
+              variable: message.body
+          actions:
+            - set: response
+              from: input.Envelope.Body.smsServiceResponse.return
+    catch:
+      - errors:
+          - ConnectionError
+        execute:
+          - gatewayscript:
+              title: gatewayscript
+              version: 1.0.0
+              source: >-
+                console.warn("### sms on 8888 1 failed - 1, calling sms on
+                8889");
+
+                console.warn("### " + apim.getvariable('message.body'));
+          - map:
+              title: 'smsService: input'
+              inputs:
+                to:
+                  schema:
+                    type: string
+                  variable: request.parameters.to
+                from:
+                  schema:
+                    type: string
+                  variable: request.parameters.from
+                msg:
+                  schema:
+                    type: string
+                  variable: request.parameters.msg
+              outputs:
+                body:
+                  schema:
+                    $ref: >-
+                      #/x-ibm-configuration/targets/SmsService/definitions/smsServiceInput
+                  variable: message.body
+                  content: application/xml
+                content-type:
+                  schema:
+                    type: string
+                  variable: message.headers.content-type
+                SOAPAction:
+                  schema:
+                    type: string
+                  variable: message.headers.SOAPAction
+              actions:
+                - set: content-type
+                  default: text/xml
+                - set: SOAPAction
+                  default: smsService
+                - set: body.Envelope.Body.smsService.to
+                  from: to
+                - set: body.Envelope.Body.smsService.from
+                  from: from
+          - invoke:
+              title: invoke
+              timeout: 60
+              verb: GET
+              cache-response: protocol
+              cache-ttl: 900
+              stop-on-error:
+                - null
+              version: 1.0.0
+              target-url: 'http://datapower:8889/smsResponse.xml'
+          - gatewayscript:
+              title: gatewayscript
+              version: 1.0.0
+              source: >-
+                console.warn("### sms on 8888 1 failed - 2, calling sms on
+                8889");
+
+                console.warn("### " + apim.getvariable('smsServiceOut.body'));
+          - map:
+              title: 'smsService: output'
+              inputs:
+                input:
+                  schema:
+                    $ref: >-
+                      #/x-ibm-configuration/targets/SmsService/definitions/smsServiceOutput
+                  variable: smsServiceOut.body
+                  content: application/xml
+              outputs:
+                response:
+                  schema:
+                    type: string
+                  variable: message.body
+              actions:
+                - set: response
+                  from: input.Envelope.Body.smsServiceResponse.return
+  targets:
+    SmsService:
+      swagger: '2.0'
+      info:
+        title: SmsService
+        description: ''
+        x-ibm-name: smsservice
+        version: 1.0.0
+      schemes:
+        - https
+      basePath: /SmsService
+      produces:
+        - application/xml
+      consumes:
+        - text/xml
+      securityDefinitions:
+        clientID:
+          type: apiKey
+          name: X-IBM-Client-Id
+          in: header
+          description: ''
+      security:
+        - clientID: []
+      x-ibm-configuration:
+        type: wsdl
+        wsdl-definition:
+          wsdl: sms2.wsdl
+          service: SmsService
+          port: SmsPort
+          soap-version: '1.1'
+        assembly:
+          execute:
+            - proxy:
+                title: proxy
+                target-url: 'http://www.examples.com/processSms/'
+        gateway: datapower-gateway
+        enforced: true
+        testable: true
+        phase: realized
+        cors:
+          enabled: true
+      paths:
+        /smsService:
+          post:
+            summary: Operation smsService
+            description: ''
+            operationId: smsService
+            x-ibm-soap:
+              soap-action: smsService
+              soap-operation: '{http://bankA.sample.ibm.com/}smsService'
+            parameters:
+              - in: body
+                name: body
+                required: true
+                schema:
+                  $ref: >-
+                    #/x-ibm-configuration/targets/SmsService/definitions/smsServiceInput
+            responses:
+              default:
+                description: ''
+                schema:
+                  $ref: >-
+                    #/x-ibm-configuration/targets/SmsService/definitions/smsServiceOutput
+      definitions:
+        Security:
+          xml:
+            namespace: >-
+              http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd
+            prefix: wsse
+          type: object
+          properties:
+            UsernameToken:
+              type: object
+              properties:
+                Username:
+                  type: string
+                Password:
+                  type: string
+        smsServiceInput:
+          type: object
+          properties:
+            Envelope:
+              xml:
+                prefix: soap-env
+                namespace: 'http://schemas.xmlsoap.org/soap/envelope/'
+              type: object
+              properties:
+                Header:
+                  $ref: >-
+                    #/x-ibm-configuration/targets/SmsService/definitions/smsServiceHeader
+                Body:
+                  type: object
+                  properties:
+                    smsService:
+                      $ref: >-
+                        #/x-ibm-configuration/targets/SmsService/definitions/smsService_tns
+          example: >-
+
+            <soap-env:Envelope
+            xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/">
+             <soap-env:Header>
+              <wsse:Security xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd">
+               <UsernameToken>
+                <Username>string</Username>
+                <Password>string</Password>
+               </UsernameToken>
+              </wsse:Security>
+             </soap-env:Header>
+             <soap-env:Body>
+              <tns:smsService xmlns:tns="http://bankA.sample.ibm.com/">
+               <from><!-- mandatory -->string</from>
+               <to><!-- mandatory -->string</to>
+               <msg><!-- mandatory -->string</msg>
+              </tns:smsService>
+             </soap-env:Body>
+            </soap-env:Envelope>
+        smsServiceHeader:
+          type: object
+          properties:
+            Security:
+              $ref: '#/x-ibm-configuration/targets/SmsService/definitions/Security'
+        smsServiceOutput:
+          type: object
+          properties:
+            Envelope:
+              xml:
+                prefix: soap-env
+                namespace: 'http://schemas.xmlsoap.org/soap/envelope/'
+              type: object
+              properties:
+                Body:
+                  type: object
+                  properties:
+                    smsServiceResponse:
+                      $ref: >-
+                        #/x-ibm-configuration/targets/SmsService/definitions/smsServiceResponse_tns
+          example: >-
+
+            <soap-env:Envelope
+            xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/">
+             <soap-env:Body>
+              <tns:smsServiceResponse xmlns:tns="http://bankA.sample.ibm.com/">
+               <return><!-- mandatory -->string</return>
+              </tns:smsServiceResponse>
+             </soap-env:Body>
+            </soap-env:Envelope>
+        smsService_tns:
+          xml:
+            namespace: 'http://bankA.sample.ibm.com/'
+            prefix: tns
+          type: object
+          properties:
+            from:
+              type: string
+              xml:
+                namespace: ''
+            to:
+              type: string
+              xml:
+                namespace: ''
+            msg:
+              type: string
+              xml:
+                namespace: ''
+          required:
+            - from
+            - to
+            - msg
+          example: |-
+
+            <tns:smsService xmlns:tns="http://bankA.sample.ibm.com/">
+             <from><!-- mandatory -->string</from>
+             <to><!-- mandatory -->string</to>
+             <msg><!-- mandatory -->string</msg>
+            </tns:smsService>
+        smsServiceResponse_tns:
+          xml:
+            namespace: 'http://bankA.sample.ibm.com/'
+            prefix: tns
+          type: object
+          properties:
+            return:
+              type: string
+              xml:
+                namespace: ''
+          required:
+            - return
+          example: |-
+
+            <tns:smsServiceResponse xmlns:tns="http://bankA.sample.ibm.com/">
+             <return><!-- mandatory -->string</return>
+            </tns:smsServiceResponse>
+  gateway: datapower-gateway
+paths:
+  /sendSms:
+    post:
+      responses:
+        '200':
+          description: 200 OK
+          schema:
+            type: string
+      operationId: sendSms
+      parameters:
+        - name: to
+          type: string
+          required: true
+          in: query
+          description: recipient
+        - name: from
+          type: string
+          required: true
+          in: query
+          description: source
+        - name: msg
+          type: string
+          required: true
+          in: query
+          description: text of the message
+definitions: {}
+tags: []

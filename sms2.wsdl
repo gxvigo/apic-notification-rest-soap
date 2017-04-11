@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" xmlns:ns1="http://schemas.xmlsoap.org/soap/http" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:tns="http://bankA.sample.ibm.com/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" name="SmsService" targetNamespace="http://bankA.sample.ibm.com/">
+   <wsdl:types>
+      <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="unqualified" targetNamespace="http://bankA.sample.ibm.com/" version="1.0">
+         <xs:element name="smsService" type="tns:smsService" />
+         <xs:element name="smsServiceResponse" type="tns:smsServiceResponse" />
+         <xs:complexType name="smsService">
+            <xs:sequence>
+               <xs:element name="from" type="xs:string" />
+               <xs:element name="to" type="xs:string" />
+               <xs:element name="msg" type="xs:string" />
+            </xs:sequence>
+         </xs:complexType>
+         <xs:complexType name="smsServiceResponse">
+            <xs:sequence>
+               <xs:element name="return" type="xs:string" />
+            </xs:sequence>
+         </xs:complexType>
+      </xs:schema>
+   </wsdl:types>
+   <wsdl:message name="smsService">
+      <wsdl:part element="tns:smsService" name="parameters" />
+   </wsdl:message>
+   <wsdl:message name="smsServiceResponse">
+      <wsdl:part element="tns:smsServiceResponse" name="parameters" />
+   </wsdl:message>
+   <wsdl:portType name="Sms">
+      <wsdl:operation name="smsService">
+         <wsdl:input message="tns:smsService" name="smsService" />
+         <wsdl:output message="tns:smsServiceResponse" name="smsServiceResponse" />
+      </wsdl:operation>
+   </wsdl:portType>
+   <wsdl:binding name="SmsServiceSoapBinding" type="tns:Sms">
+      <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http" />
+      <wsdl:operation name="smsService">
+         <soap:operation soapAction="smsService" style="document" />
+         <wsdl:input name="smsService">
+            <soap:body use="literal" />
+         </wsdl:input>
+         <wsdl:output name="smsServiceResponse">
+            <soap:body use="literal" />
+         </wsdl:output>
+      </wsdl:operation>
+   </wsdl:binding>
+   <wsdl:service name="SmsService">
+      <wsdl:port binding="tns:SmsServiceSoapBinding" name="SmsPort">
+         <soap:address location="http://www.examples.com/processSms/" />
+      </wsdl:port>
+   </wsdl:service>
+</wsdl:definitions>
